@@ -17,7 +17,9 @@ class StrutsXmlReader {
       xmlAction <- xmlActions
     } yield makeStrutsAction(xmlAction)
     
-    println(actions.size)
+    for(action <- actions){
+      println(action.name)
+    }
     
     // TODO: fill actions into graph structure
   }
@@ -27,15 +29,15 @@ class StrutsXmlReader {
    */
   private def makeStrutsAction(xmlAction: Node): StrutsAction = {
     val strutsForwards = for {
-      xmlForward <- xmlAction \\ "forward"
+      xmlForward <- xmlAction \ "forward"
     } yield makeStrutsForward(xmlForward)
     
     new StrutsAction(
-      (xmlAction \\ "@path").toString,
-      (xmlAction \\ "@type").toString,
-      (xmlAction \\ "@name").toString,
-      stringToBoolean((xmlAction \\ "@validate").toString),
-      (xmlAction \\ "@input").toString,
+      (xmlAction \ "@path").toString,
+      (xmlAction \ "@type").toString,
+      (xmlAction \ "@name").toString,
+      stringToBoolean((xmlAction \ "@validate").toString),
+      (xmlAction \ "@input").toString,
       strutsForwards
     )
   }
@@ -45,9 +47,9 @@ class StrutsXmlReader {
    */
   private def makeStrutsForward(xmlForward: Node): StrutsForward = {
     new StrutsForward(
-      (xmlForward \\ "@name").toString,
-      (xmlForward \\ "@path").toString,
-      stringToBoolean((xmlForward \\ "@contextRelative").toString)
+      (xmlForward \ "@name").toString,
+      (xmlForward \ "@path").toString,
+      stringToBoolean((xmlForward \ "@contextRelative").toString)
     )
   }
   
