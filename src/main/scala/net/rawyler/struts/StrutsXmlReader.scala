@@ -18,7 +18,7 @@ class StrutsXmlReader {
     } yield makeStrutsAction(xmlAction)
     
     for(action <- actions){
-      println(action.name)
+      println(action.path)
     }
     
     // TODO: fill actions into graph structure

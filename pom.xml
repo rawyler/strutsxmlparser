@@ -14,6 +14,13 @@
       <name>Scala-Tools Maven2 Repository</name>
       <url>http://scala-tools.org/repo-releases</url>
     </repository>
+    <!-- Scala 2.8 Latest -->
+    <repository>
+      <id>scala-tools.org.snapshots</id>
+      <name>Scala Tools Maven2 Repository</name>
+      <url>http://scala-tools.org/repo-snapshots</url>
+      <snapshots />
+    </repository>
   </repositories>
 
   <pluginRepositories>
@@ -33,13 +40,13 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.4</version>
+      <version>LATEST</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.specs</groupId>
+      <groupId>org.scala-tools.testing</groupId>
       <artifactId>specs</artifactId>
-      <version>1.2.5</version>
+      <version>1.6.2.1</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
