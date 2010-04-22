@@ -49,6 +49,21 @@
       <version>1.6.2.1</version>
       <scope>test</scope>
     </dependency>
+    <dependency> 
+      <groupId>org.scala-lang</groupId> 
+      <artifactId>scala-swing</artifactId> 
+      <version>${scala.version}</version> 
+    </dependency> 
+    <dependency>
+      <groupId>org.jgrapht</groupId>
+      <artifactId>jgrapht-jdk1.5</artifactId>
+      <version>0.7.3</version>  
+    </dependency>
+    <dependency>
+      <groupId>jgraph</groupId>
+      <artifactId>jgraph</artifactId>
+      <version>5.13.0.0</version>
+    </dependency>
   </dependencies>
 
   <build>

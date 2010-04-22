@@ -2,12 +2,22 @@ package net.rawyler.struts
 
 import scala.xml._
 
+import org.jgrapht.Graph
+import org.jgrapht.DirectedGraph
+import org.jgrapht.graph.DefaultDirectedGraph
+import org.jgrapht.graph.DefaultEdge
+
+
 class StrutsXmlReader {
+  
+  val ActionPath = """.*?(\w+)""".r
+  
+  val ForwardPath = """.*?(\w+)\..*""".r
   
   /**
    * load a struts file
    */
-  def fromXML(filename: String) : Unit = {
+  def fromXML(filename: String) : Graph[String, DefaultEdge] = {
     
     val root = xml.XML.loadFile(filename)
     
@@ -17,11 +27,25 @@ class StrutsXmlReader {
       xmlAction <- xmlActions
     } yield makeStrutsAction(xmlAction)
     
+    val directedGraph = new DefaultDirectedGraph[String, DefaultEdge](classOf[DefaultEdge])
+    
+    // add all the vertices (of all struts xml files)
     for(action <- actions){
-      println(action.path)
+      directedGraph.addVertex(action.path)
     }
     
-    // TODO: fill actions into graph structure
+    // connect the vertices with edges
+    for(action <- actions){
+      for(forward <- action.forwards){
+        try {
+          directedGraph.addEdge(action.path, forward.path)
+        } catch {
+          case e: IllegalArgumentException => println("Missing: " + action.path + " -> " + forward.path)
+        }
+      }
+    }
+    
+    directedGraph
   }
   
   /**
@@ -32,8 +56,10 @@ class StrutsXmlReader {
       xmlForward <- xmlAction \ "forward"
     } yield makeStrutsForward(xmlForward)
     
+    val ActionPath(path) = (xmlAction \ "@path").toString
+    
     new StrutsAction(
-      (xmlAction \ "@path").toString,
+      path,
       (xmlAction \ "@type").toString,
       (xmlAction \ "@name").toString,
       stringToBoolean((xmlAction \ "@validate").toString),
@@ -46,9 +72,11 @@ class StrutsXmlReader {
    * Create a new StrutsForward for the given xml node
    */
   private def makeStrutsForward(xmlForward: Node): StrutsForward = {
+    val ForwardPath(path) = (xmlForward \ "@path").toString
+    
     new StrutsForward(
       (xmlForward \ "@name").toString,
-      (xmlForward \ "@path").toString,
+      path,
       stringToBoolean((xmlForward \ "@contextRelative").toString)
     )
   }
