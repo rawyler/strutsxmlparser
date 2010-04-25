@@ -13,8 +13,6 @@ class StrutsXmlReader {
    */
   def fromXML(fileNames: String*): Seq[StrutsAction] = {
     
-    println(fileNames.size)
-    
     // directly flatMap to all "action" elements
     val xmlActions = (for (fileName <- fileNames)
       yield xml.XML.loadFile(fileName) \ "action-mappings" \ "action") flatMap (_.toList)

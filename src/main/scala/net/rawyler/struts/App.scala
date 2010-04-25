@@ -14,12 +14,19 @@ import java.io.{ File, IOException }
 
 import org.jgrapht.ext.JGraphModelAdapter
 
+import org.jgrapht.graph.DefaultEdge
+
 import org.jgraph.JGraph
+
 
 /**
  * Read XML files and generate the graph
  */
 object App extends SimpleGUIApplication {
+  
+  final val WIDTH = 1600
+  
+  final val HEIGHT = 1024
   
   val reader = new StrutsXmlReader
   
@@ -54,10 +61,14 @@ object App extends SimpleGUIApplication {
               currentFiles = fileChoser.selectedFiles
               val fileNames = for (currentFile <- currentFiles) yield currentFile.getAbsolutePath
               
-              val graph = graphCreator.toGraph(reader.fromXML(fileNames:_*))
+              val fromXML = reader.fromXML(fileNames:_*)
+              val graph = graphCreator.toGraph(fromXML)
               val adapter = new JGraphModelAdapter(graph);
               val jScrollPane = new JScrollPane(new JGraph(adapter))
-              jScrollPane.setMinimumSize(new Dimension(1024, 768))
+              jScrollPane.setMinimumSize(new Dimension(WIDTH, HEIGHT))
+              
+              val vertexPositioner = new VertexPositioner[String, DefaultEdge]
+              vertexPositioner.positionVertices(adapter, fromXML, (WIDTH, HEIGHT))
               
               contents += Component.wrap(jScrollPane)
               
@@ -84,7 +95,7 @@ object App extends SimpleGUIApplication {
     
     JFrame setDefaultLookAndFeelDecorated true
     
-    minimumSize = new Dimension(1024, 768)
+    minimumSize = new Dimension(WIDTH, HEIGHT)
     
     contents = mainPanel
   }  
