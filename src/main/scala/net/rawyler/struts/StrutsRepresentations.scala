@@ -27,3 +27,4 @@ class VertexRepresentator (val name: String, val alive: Boolean = false) {
   
   override def toString = name
 }
+
