@@ -4,88 +4,79 @@ import scala.swing._
 
 import scala.swing.event.ButtonClicked
 
-import javax.swing.{JFrame, JScrollPane, UIManager}
+import java.awt.{Color,Toolkit}
 
-import java.awt.Dimension
+import javax.swing.{JFrame, JScrollPane, UIManager}
 
 import javax.swing.filechooser.FileNameExtensionFilter
 
 import java.io.{ File, IOException }
 
-import org.jgrapht.ext.JGraphModelAdapter
-
-import org.jgrapht.graph.DefaultEdge
-
-import org.jgraph.JGraph
-
 
 /**
  * Read XML files and generate the graph
  */
-object App extends SimpleGUIApplication {
+object App extends SimpleSwingApplication {
+   	
+  // val reader = new StrutsXmlReader
+  val reader = new StrutsReader
   
-  final val WIDTH = 1600
-  
-  final val HEIGHT = 1024
-  
-  val reader = new StrutsXmlReader
-  
-  val graphCreator = new GraphCreator
+  // val graphCreator = new GraphCreator
+  val jung = new JUNGFacade
+      
+  val screenSize = Toolkit.getDefaultToolkit().getScreenSize()
   
   var currentFiles: Seq[File] = null
-  
-  val mainPanel = new BoxPanel(Orientation.Vertical) {
+
+  val buttonPanel = new BoxPanel(Orientation.Horizontal) {
+	
+	border = Swing.EmptyBorder(10,10,10,10)
+	  
     val openFilesButton = new Button {
       text = "Open file(s)"
     }
+	val saveGraphAsButton = new Button {
+	  text = "Save graph as ..."
+	  visible = false
+	}
+	
     contents += openFilesButton
+    contents += saveGraphAsButton
 
     listenTo(openFilesButton)
-    
-    def getFileChooser = {
-      val dir = if (currentFiles == null) new File(System.getProperty("user.home")) else currentFiles.first
-      new FileChooser(dir) {
-        fileFilter = new FileNameExtensionFilter("Struts XML", "xml")
-        // strange behaviour of multiSelectionEnable = true, had to use _
-        multiSelectionEnable_= (true)
-      }
-    }
-    
-    def openFile: Unit = {
-      val fileChoser = getFileChooser
-      fileChoser.title = "Choose Struts XML file(s) to analyse"
-      fileChoser.showOpenDialog(this) match {
-        case FileChooser.Result.Approve =>
-          try {
-            if (fileChoser.selectedFile.exists) {
-              currentFiles = fileChoser.selectedFiles
-              val fileNames = for (currentFile <- currentFiles) yield currentFile.getAbsolutePath
-              
-              val fromXML = reader.fromXML(fileNames:_*)
-              val graph = graphCreator.toGraph(fromXML)
-              val adapter = new JGraphModelAdapter(graph);
-              val jScrollPane = new JScrollPane(new JGraph(adapter))
-              jScrollPane.setMinimumSize(new Dimension(WIDTH, HEIGHT))
-              
-              val vertexPositioner = new VertexPositioner[String, DefaultEdge]
-              vertexPositioner.positionVertices(adapter, fromXML, (WIDTH, HEIGHT))
-              
-              contents += Component.wrap(jScrollPane)
-              
-              jScrollPane.updateUI
-            }
-          } catch {
-            case e: IOException =>
-              Dialog.showMessage(this, "Error loading File: " + e.getMessage)
-          }
-        case FileChooser.Result.Cancel => ;
-        case FileChooser.Result.Error => ;
-      }
-    }
-    
+    listenTo(saveGraphAsButton)
+
     reactions += {
-      case ButtonClicked(openFilesButton) => openFile
+      case ButtonClicked(b) =>
+      	if(b == openFilesButton) openFile
+      	if(b == saveGraphAsButton) saveGraphAsFile
     }
+  }
+  
+  val infoPanel = new BoxPanel(Orientation.Vertical) {
+	  	  
+	  contents += new Label("Interactive modes:")
+	  contents += new TextArea {
+	 	  background = Color.lightGray
+	 	  text = "[p] - picking mode\n" +
+	 	  		"* drag and drop vertices\n" +
+	 	  		"* press [Shift] to select multiple vertices\n" +
+	 	  		"* press [CTRL] to center a specific vertex\n\n" +
+	 	  		"[t] - transforming mode\n" +
+	 	  		"* move graph around\n" +
+	 	  		"* scroll to zoom in and out\n" +
+	 	  		"* press [Shift] or [CTRL] to transform graph"
+	  }
+  }
+   
+  val drawPanel = new BoxPanel(Orientation.Vertical) {
+	  
+	  background = Color.white
+
+	  def draw(vertices: Map[String, VertexRepresentator], edges: Map[Int, EdgeRepresentator]) = {
+	 	contents += Component.wrap(jung.buildGraph(vertices, edges).prepareLayout.formDesign.activateControllers.plot)
+	  }
+	  
   }
   
   def top = new MainFrame {
@@ -95,8 +86,63 @@ object App extends SimpleGUIApplication {
     
     JFrame setDefaultLookAndFeelDecorated true
     
-    minimumSize = new Dimension(WIDTH, HEIGHT)
+    minimumSize = screenSize
     
-    contents = mainPanel
-  }  
+    contents = new BorderPanel {
+    	layout += buttonPanel -> BorderPanel.Position.North
+    	layout += drawPanel -> BorderPanel.Position.Center
+    	layout += infoPanel -> BorderPanel.Position.East
+    }
+  }
+  
+  def getFileChooser = {
+      val dir = if (currentFiles == null) new File(System.getProperty("user.home")) else currentFiles.first
+      new FileChooser(dir) {
+        fileFilter = new FileNameExtensionFilter("Struts Files", "xml", "jsp", "jspf")
+        
+        multiSelectionEnabled = true
+      }
+  }
+  
+  def openFile: Unit = {
+    val fileChooser = getFileChooser
+    fileChooser.title = "Choose Struts file(s) to analyse"
+    fileChooser.showOpenDialog(drawPanel) match {
+      case FileChooser.Result.Approve =>
+      	try {
+            if (fileChooser.selectedFile.exists) {
+
+              currentFiles = fileChooser.selectedFiles
+              
+              val fileNames = for (currentFile <- currentFiles) yield currentFile.getAbsolutePath
+
+              // XML & JSP
+              val (vertices, edges) = reader.readFiles(fileNames:_*)
+  
+              drawPanel.draw(vertices, edges)
+              
+              buttonPanel.saveGraphAsButton.visible = true
+            }
+          } catch {
+            case e: IOException =>
+              Dialog.showMessage(drawPanel, "Error loading File: " + e.getMessage)
+
+          }
+        case FileChooser.Result.Cancel => ;
+        case FileChooser.Result.Error => ;
+      }
+  }
+
+  def saveGraphAsFile: Unit = {
+	  val dir = new File(System.getProperty("user.home"))
+      val fileChooser = new FileChooser(dir) {
+        fileFilter = new FileNameExtensionFilter("Image (*.jpg, *.png, *.gif)", "jpg", "png", "gif", "jpeg")
+        title = "Save graph as file"
+	  }
+	  fileChooser.showSaveDialog(drawPanel) match {
+		  case FileChooser.Result.Approve => jung.saveGraphAs(fileChooser.selectedFile)
+		  case FileChooser.Result.Cancel => ;
+	 	  case FileChooser.Result.Error => ;
+	  }
+  }
 }
