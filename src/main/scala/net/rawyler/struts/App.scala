@@ -2,7 +2,7 @@ package net.rawyler.struts
 
 import scala.swing._
 
-import scala.swing.event.ButtonClicked
+import scala.swing.event._
 
 import java.awt.{Color,Toolkit}
 
@@ -12,6 +12,9 @@ import javax.swing.filechooser.FileNameExtensionFilter
 
 import java.io.{ File, IOException }
 
+import edu.uci.ics.jung.visualization.GraphZoomScrollPane
+
+import edu.uci.ics.jung._
 
 /**
  * Read XML files and generate the graph
@@ -23,10 +26,21 @@ object App extends SimpleSwingApplication {
   
   // val graphCreator = new GraphCreator
   val jung = new JUNGFacade
-      
+  
+  var component: GraphZoomScrollPane = null
+  
+  var verticesG = Map[String, VertexRepresentator]()
+  var edgesG = Map[Int, EdgeRepresentator]()
+  
   val screenSize = Toolkit.getDefaultToolkit().getScreenSize()
   
   var currentFiles: Seq[File] = null
+ 
+  val filterLabel = new Label {
+      text = " Filter nodes: "
+    }
+  
+  val filterField = new TextField()
 
   val buttonPanel = new BoxPanel(Orientation.Horizontal) {
 	
@@ -39,17 +53,31 @@ object App extends SimpleSwingApplication {
 	  text = "Save graph as ..."
 	  visible = false
 	}
+    val clearFilterButton = new Button {
+      text = "Clear filter"
+    }	
 	
     contents += openFilesButton
     contents += saveGraphAsButton
-
+    contents += filterLabel
+    contents += filterField
+    contents += clearFilterButton
     listenTo(openFilesButton)
     listenTo(saveGraphAsButton)
+    listenTo(filterField)
+    listenTo(clearFilterButton)
 
     reactions += {
       case ButtonClicked(b) =>
       	if(b == openFilesButton) openFile
       	if(b == saveGraphAsButton) saveGraphAsFile
+      	if(b == clearFilterButton) clearFilter
+      case EditDone(`filterField`) =>
+        //val f = filterField.text.toInt
+        //val c = f + 1
+        //filterField.text = c.toString
+        //filterVertices("test")
+      	filterVertices(filterField.text.toString)
     }
   }
   
@@ -65,18 +93,22 @@ object App extends SimpleSwingApplication {
 	 	  		"[t] - transforming mode\n" +
 	 	  		"* move graph around\n" +
 	 	  		"* scroll to zoom in and out\n" +
-	 	  		"* press [Shift] or [CTRL] to transform graph"
+	 	  		"* press [Shift] or [CTRL] to transform graph\n\n" +
+	 	  		"To import a previously saved graph name the XML file\n" + 
+	 	  		"graph.xml to make sure the right parser is chosen."
 	  }
   }
    
   val drawPanel = new BoxPanel(Orientation.Vertical) {
 	  
 	  background = Color.white
-
-	  def draw(vertices: Map[String, VertexRepresentator], edges: Map[Int, EdgeRepresentator]) = {
-	 	contents += Component.wrap(jung.buildGraph(vertices, edges).prepareLayout.formDesign.activateControllers.plot)
-	  }
 	  
+	  def draw(vertices: Map[String, VertexRepresentator], edges: Map[Int, EdgeRepresentator]) = {
+	 	  contents += Component.wrap(jung.buildGraph(vertices, edges).prepareLayout.formDesign.activateControllers.plot)
+	  }
+	  def draw(file: File) = {
+	 	  contents += Component.wrap(jung.loadGraphFrom(file).prepareLayout.formDesign.activateControllers.plot)
+	  }
   }
   
   def top = new MainFrame {
@@ -104,24 +136,31 @@ object App extends SimpleSwingApplication {
       }
   }
   
-  def openFile: Unit = {
+  def openFile {
     val fileChooser = getFileChooser
-    fileChooser.title = "Choose Struts file(s) to analyse"
+    fileChooser.title = "Choose Struts file(s) to analyse or graph XML file (graph.xml)"
     fileChooser.showOpenDialog(drawPanel) match {
       case FileChooser.Result.Approve =>
       	try {
             if (fileChooser.selectedFile.exists) {
-
-              currentFiles = fileChooser.selectedFiles
-              
-              val fileNames = for (currentFile <- currentFiles) yield currentFile.getAbsolutePath
-
-              // XML & JSP
-              val (vertices, edges) = reader.readFiles(fileNames:_*)
-  
-              drawPanel.draw(vertices, edges)
-              
-              buttonPanel.saveGraphAsButton.visible = true
+            	
+            	currentFiles = fileChooser.selectedFiles
+            	
+            	if (currentFiles.first.getName == "graph.xml") {
+            		drawPanel.draw(currentFiles.first)
+            	} else {              
+	            	val fileNames = for (currentFile <- currentFiles) yield currentFile.getAbsolutePath
+	
+	            	// XML & JSP
+	            	val (vertices, edges) = reader.readFiles(fileNames:_*)
+	              
+	            	verticesG = vertices
+	            	edgesG = edges
+	              
+	            	drawPanel.draw(vertices, edges)
+	              
+	            	buttonPanel.saveGraphAsButton.visible = true
+            	}
             }
           } catch {
             case e: IOException =>
@@ -133,10 +172,10 @@ object App extends SimpleSwingApplication {
       }
   }
 
-  def saveGraphAsFile: Unit = {
+  def saveGraphAsFile = {
 	  val dir = new File(System.getProperty("user.home"))
       val fileChooser = new FileChooser(dir) {
-        fileFilter = new FileNameExtensionFilter("Image (*.jpg, *.png, *.gif)", "jpg", "png", "gif", "jpeg")
+        fileFilter = new FileNameExtensionFilter("Image (*.jpg, *.png, *.gif)", "jpg", "png", "gif", "jpeg", "xml")
         title = "Save graph as file"
 	  }
 	  fileChooser.showSaveDialog(drawPanel) match {
@@ -144,5 +183,23 @@ object App extends SimpleSwingApplication {
 		  case FileChooser.Result.Cancel => ;
 	 	  case FileChooser.Result.Error => ;
 	  }
+  }
+	  
+  def filterVertices(filterString: String) = {
+	  println("filterVertices "+filterString)
+	  println("before: "+edgesG.size)
+	  
+	  var edges = edgesG.filter(e => e._2.head.name == filterString||e._2.tail.name == filterString)
+	  var vertices = verticesG.filterKeys(_ == filterString)
+
+	  println("after: "+edges.size)
+	  
+	  drawPanel.contents.clear  
+	  drawPanel.draw(vertices, edges)
+  }
+ 
+  def clearFilter() = {	  
+	  drawPanel.contents.clear
+	  drawPanel.draw(verticesG, edgesG)
   }
 }

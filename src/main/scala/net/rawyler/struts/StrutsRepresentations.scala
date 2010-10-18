@@ -1,5 +1,7 @@
 package net.rawyler.struts
 
+import org.apache.commons.collections15.Transformer
+
 /*
  * Edge
  * name: XML = forward@name, JSP = html:link@page (incl. ?variable=value)
@@ -16,7 +18,21 @@ class EdgeRepresentator (val name: String, val tail: VertexRepresentator, val he
 	  ) + head.hashCode
   
   override def toString = name
- }
+}
+
+object EdgeRepresentator {
+  def getTransformerEdgeToString: Transformer[EdgeRepresentator, String] = {
+	  return new EdgeRepresentatorIDs()
+  }
+}
+
+class EdgeRepresentatorIDs extends Transformer[EdgeRepresentator, String] {
+	def transform(e: EdgeRepresentator): String = {
+		var s: String = null
+		s = new String( e.name + " #" + e.hashCode )
+		return s
+	}
+}
 
 /*
  * Vertex
